@@ -1,2 +1,3 @@
 # mirai-cpp-win
-为mirai-cpp提供点开就用的windows开发体验
+此项目所有代码来自：https://github.com/cyanray/mirai-cpp/
+
