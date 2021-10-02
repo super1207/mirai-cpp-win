@@ -1,4 +1,4 @@
-#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
+﻿#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
 #include <iostream>
 #include <queue>
@@ -184,7 +184,7 @@ namespace Cyan
 		pmem->sessionOptions = std::make_shared<SessionOptions>(opts);
 		pmem->threadPool = std::make_unique<ThreadPool>(opts.ThreadPoolSize.Get());
 		pmem->httpClient = std::make_shared<httplib::Client>(opts.HttpHostname.Get(), opts.HttpPort.Get());
-		pmem->botQQ = opts.BotQQ.Get();
+
 		string& sessionKey = pmem->sessionKey;
 		if (opts.EnableVerify.Get())
 		{
@@ -192,7 +192,14 @@ namespace Cyan
 		}
 		if (!opts.SingleMode.Get())
 		{
+			pmem->botQQ = opts.BotQQ.Get();
 			pmem->SessionBind(sessionKey, opts.BotQQ.Get());
+		}
+		else
+		{
+			auto info = GetSessionInfo();
+			pmem->sessionOptions->BotQQ = info.QQ;
+			pmem->botQQ = info.QQ;
 		}
 
 		pmem->eventClient.Connect(
@@ -655,7 +662,7 @@ namespace Cyan
 		pmem->SetGroupMemberInfo(gid, memberId, member_info.MemberName, title);
 	}
 
-	vector<GroupFile> MiraiBot::GetGroupFiles(const GID_t& gid, const string& parentId)
+	vector<GroupFile> MiraiBot::GetGroupFiles(const GID_t& gid, bool withDownloadInfo, int offset, int size, const string& parentId)
 	{
 		stringstream api_url;
 		api_url
@@ -664,7 +671,13 @@ namespace Cyan
 			<< "&target="
 			<< int64_t(gid)
 			<< "&id="
-			<< parentId;
+			<< parentId
+			<< "&offset="
+			<< offset
+			<< "&size="
+			<< size
+			<< "&withDownloadInfo="
+			<< (withDownloadInfo ? "true" : "false");
 		// 取文件列表响应比较慢
 		pmem->httpClient->set_read_timeout(60, 0);
 		auto res = pmem->httpClient->Get(api_url.str().data());
@@ -679,7 +692,7 @@ namespace Cyan
 		return result;
 	}
 
-	GroupFile MiraiBot::GetGroupFilById(const GID_t& gid, const string& groupFileId)
+	GroupFile MiraiBot::GetGroupFileById(const GID_t& gid, const string& groupFileId, bool withDownloadInfo)
 	{
 		stringstream api_url;
 		api_url
@@ -688,30 +701,15 @@ namespace Cyan
 			<< "&target="
 			<< int64_t(gid)
 			<< "&id="
-			<< groupFileId;
+			<< groupFileId
+			<< "&withDownloadInfo="
+			<< (withDownloadInfo ? "true" : "false");
 		auto res = pmem->httpClient->Get(api_url.str().data());
 		json re_json = ParseOrThrowException(res);
 		GroupFile result;
 		result.Set(re_json);
 		return result;
 
-	}
-
-	GroupFileInfo MiraiBot::GetGroupFileInfo(GID_t gid, const GroupFile& groupFile)
-	{
-		stringstream api_url;
-		api_url
-			<< "/groupFileInfo?sessionKey="
-			<< pmem->sessionKey
-			<< "&target="
-			<< int64_t(gid)
-			<< "&id="
-			<< groupFile.Id;
-		auto res = pmem->httpClient->Get(api_url.str().data());
-		json re_json = ParseOrThrowException(res);
-		GroupFileInfo result;
-		result.Set(re_json);
-		return result;
 	}
 
 	GroupFile MiraiBot::GroupFileMakeDirectory(const GID_t& target, const string& dictionaryName)
@@ -970,4 +968,27 @@ namespace Cyan
 		auto res = pmem->httpClient->Post("/cmd/execute", data.dump(), CONTENT_TYPE.c_str());
 		ParseOrThrowException(res);
 	}
+
+	Friend_t MiraiBot::GetSessionInfo()
+	{
+		auto res = pmem->httpClient->Get("/sessionInfo?sessionKey="s.append(pmem->sessionKey).data());
+		json re_json = ParseOrThrowException(res);
+		Friend_t result;
+		result.Set(re_json["data"]["qq"]);
+		return result;
+	}
+
+	void MiraiBot::SetGroupAdmin(const GID_t& group, const QQ_t& member, bool assign)
+	{
+		json data =
+		{
+			{ "sessionKey", pmem->sessionKey },
+			{ "target", int64_t(group) },
+			{ "memberId", int64_t(member) },
+			{ "assign", assign }
+		};
+		auto res = pmem->httpClient->Post("/memberAdmin", data.dump(), CONTENT_TYPE.c_str());
+		ParseOrThrowException(res);
+	}
+
 } // namespace Cyan
