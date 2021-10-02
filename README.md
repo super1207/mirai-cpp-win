@@ -9,5 +9,5 @@
 
 ## 提醒更新
 当前版本为：
-https://github.com/cyanray/mirai-cpp/tree/c1ab33735649a3be9f397bce553c4da6d06c69de <br />
+https://github.com/cyanray/mirai-cpp/tree/fba036f2f3c636a3fce35eb2914f0dd0bb47f6b5 <br />
 若你发现这里的版本过旧，可以发issue提醒我更新。
